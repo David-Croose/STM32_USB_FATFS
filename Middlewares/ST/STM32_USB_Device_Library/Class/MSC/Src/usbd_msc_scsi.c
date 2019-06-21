@@ -6,39 +6,13 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2017 STMicroelectronics International N.V.
+  * <h2><center>&copy; Copyright (c) 2015 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
-  * Redistribution and use in source and binary forms, with or without
-  * modification, are permitted, provided that the following conditions are met:
-  *
-  * 1. Redistribution of source code must retain the above copyright notice,
-  *    this list of conditions and the following disclaimer.
-  * 2. Redistributions in binary form must reproduce the above copyright notice,
-  *    this list of conditions and the following disclaimer in the documentation
-  *    and/or other materials provided with the distribution.
-  * 3. Neither the name of STMicroelectronics nor the names of other
-  *    contributors to this software may be used to endorse or promote products
-  *    derived from this software without specific written permission.
-  * 4. This software, including modifications and/or derivative works of this
-  *    software, must execute solely and exclusively on microcontroller or
-  *    microprocessor devices manufactured by or for STMicroelectronics.
-  * 5. Redistribution and use of this software other than as permitted under
-  *    this license is void and will automatically terminate your rights under
-  *    this license.
-  *
-  * THIS SOFTWARE IS PROVIDED BY STMICROELECTRONICS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS, IMPLIED OR STATUTORY WARRANTIES, INCLUDING, BUT NOT
-  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-  * PARTICULAR PURPOSE AND NON-INFRINGEMENT OF THIRD PARTY INTELLECTUAL PROPERTY
-  * RIGHTS ARE DISCLAIMED TO THE FULLEST EXTENT PERMITTED BY LAW. IN NO EVENT
-  * SHALL STMICROELECTRONICS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-  * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                      http://www.st.com/SLA0044
   *
   ******************************************************************************
   */
@@ -286,10 +260,7 @@ static int8_t SCSI_ReadCapacity10(USBD_HandleTypeDef  *pdev, uint8_t lun, uint8_
 
   if(((USBD_StorageTypeDef *)pdev->pUserData)->GetCapacity(lun, &hmsc->scsi_blk_nbr, &hmsc->scsi_blk_size) != 0)
   {
-    SCSI_SenseCode(pdev,
-                   lun,
-                   NOT_READY,
-                   MEDIUM_NOT_PRESENT);
+    SCSI_SenseCode(pdev, lun, NOT_READY, MEDIUM_NOT_PRESENT);
     return -1;
   }
   else
@@ -329,12 +300,9 @@ static int8_t SCSI_ReadFormatCapacity(USBD_HandleTypeDef  *pdev, uint8_t lun, ui
     hmsc->bot_data[i] = 0U;
   }
 
-  if(((USBD_StorageTypeDef *)pdev->pUserData)->GetCapacity(lun, &blk_nbr, &blk_size) != 0)
+  if(((USBD_StorageTypeDef *)pdev->pUserData)->GetCapacity(lun, &blk_nbr, &blk_size) != 0U)
   {
-    SCSI_SenseCode(pdev,
-                   lun,
-                   NOT_READY,
-                   MEDIUM_NOT_PRESENT);
+    SCSI_SenseCode(pdev, lun, NOT_READY, MEDIUM_NOT_PRESENT);
     return -1;
   }
   else
@@ -495,12 +463,9 @@ static int8_t SCSI_Read10(USBD_HandleTypeDef *pdev, uint8_t lun, uint8_t *params
       return -1;
     }
 
-    if(((USBD_StorageTypeDef *)pdev->pUserData)->IsReady(lun) !=0 )
+    if(((USBD_StorageTypeDef *)pdev->pUserData)->IsReady(lun) != 0)
     {
-      SCSI_SenseCode(pdev,
-                     lun,
-                     NOT_READY,
-                     MEDIUM_NOT_PRESENT);
+      SCSI_SenseCode(pdev, lun, NOT_READY, MEDIUM_NOT_PRESENT);
       return -1;
     }
 
@@ -518,11 +483,9 @@ static int8_t SCSI_Read10(USBD_HandleTypeDef *pdev, uint8_t lun, uint8_t *params
     }
 
     hmsc->bot_state = USBD_BOT_DATA_IN;
-    hmsc->scsi_blk_addr *= hmsc->scsi_blk_size;
-    hmsc->scsi_blk_len  *= hmsc->scsi_blk_size;
 
     /* cases 4,5 : Hi <> Dn */
-    if (hmsc->cbw.dDataLength != hmsc->scsi_blk_len)
+    if (hmsc->cbw.dDataLength != (hmsc->scsi_blk_len * hmsc->scsi_blk_size))
     {
       SCSI_SenseCode(pdev, hmsc->cbw.bLUN, ILLEGAL_REQUEST, INVALID_CDB);
       return -1;
@@ -544,7 +507,7 @@ static int8_t SCSI_Read10(USBD_HandleTypeDef *pdev, uint8_t lun, uint8_t *params
 static int8_t SCSI_Write10 (USBD_HandleTypeDef  *pdev, uint8_t lun , uint8_t *params)
 {
   USBD_MSC_BOT_HandleTypeDef  *hmsc = (USBD_MSC_BOT_HandleTypeDef*) pdev->pClassData;
-  uint16_t len;
+  uint32_t len;
 
   if (hmsc->bot_state == USBD_BOT_IDLE) /* Idle */
   {
@@ -556,14 +519,14 @@ static int8_t SCSI_Write10 (USBD_HandleTypeDef  *pdev, uint8_t lun , uint8_t *pa
     }
 
     /* Check whether Media is ready */
-    if(((USBD_StorageTypeDef *)pdev->pUserData)->IsReady(lun) !=0)
+    if(((USBD_StorageTypeDef *)pdev->pUserData)->IsReady(lun) != 0)
     {
       SCSI_SenseCode(pdev, lun, NOT_READY, MEDIUM_NOT_PRESENT);
       return -1;
     }
 
     /* Check If media is write-protected */
-    if(((USBD_StorageTypeDef *)pdev->pUserData)->IsWriteProtected(lun) !=0 )
+    if(((USBD_StorageTypeDef *)pdev->pUserData)->IsWriteProtected(lun) != 0)
     {
       SCSI_SenseCode(pdev, lun, NOT_READY, WRITE_PROTECTED);
       return -1;
@@ -584,17 +547,17 @@ static int8_t SCSI_Write10 (USBD_HandleTypeDef  *pdev, uint8_t lun , uint8_t *pa
       return -1; /* error */
     }
 
-    hmsc->scsi_blk_addr *= hmsc->scsi_blk_size;
-    hmsc->scsi_blk_len  *= hmsc->scsi_blk_size;
+    len = hmsc->scsi_blk_len * hmsc->scsi_blk_size;
 
     /* cases 3,11,13 : Hn,Ho <> D0 */
-    if (hmsc->cbw.dDataLength != hmsc->scsi_blk_len)
+    if (hmsc->cbw.dDataLength != len)
     {
       SCSI_SenseCode(pdev, hmsc->cbw.bLUN, ILLEGAL_REQUEST, INVALID_CDB);
       return -1;
     }
 
-    len = (uint16_t)MIN(hmsc->scsi_blk_len, MSC_MEDIA_PACKET);
+    len = MIN(len, MSC_MEDIA_PACKET);
+
     /* Prepare EP to receive first data packet */
     hmsc->bot_state = USBD_BOT_DATA_OUT;
     USBD_LL_PrepareReceive (pdev, MSC_EPOUT_ADDR, hmsc->bot_data, len);
@@ -664,14 +627,14 @@ static int8_t SCSI_CheckAddressRange (USBD_HandleTypeDef *pdev, uint8_t lun,
 static int8_t SCSI_ProcessRead (USBD_HandleTypeDef  *pdev, uint8_t lun)
 {
   USBD_MSC_BOT_HandleTypeDef *hmsc = (USBD_MSC_BOT_HandleTypeDef*)pdev->pClassData;
-  uint16_t len;
+  uint32_t len = hmsc->scsi_blk_len * hmsc->scsi_blk_size;
 
-  len = (uint16_t)MIN(hmsc->scsi_blk_len, MSC_MEDIA_PACKET);
+  len = MIN(len, MSC_MEDIA_PACKET);
 
   if( ((USBD_StorageTypeDef *)pdev->pUserData)->Read(lun,
                               hmsc->bot_data,
-                              hmsc->scsi_blk_addr / hmsc->scsi_blk_size,
-                              len / hmsc->scsi_blk_size) < 0)
+                              hmsc->scsi_blk_addr,
+                              (len / hmsc->scsi_blk_size)) < 0)
   {
     SCSI_SenseCode(pdev, lun, HARDWARE_ERROR, UNRECOVERED_READ_ERROR);
     return -1;
@@ -679,8 +642,8 @@ static int8_t SCSI_ProcessRead (USBD_HandleTypeDef  *pdev, uint8_t lun)
 
   USBD_LL_Transmit (pdev, MSC_EPIN_ADDR, hmsc->bot_data, len);
 
-  hmsc->scsi_blk_addr += len;
-  hmsc->scsi_blk_len -= len;
+  hmsc->scsi_blk_addr += (len / hmsc->scsi_blk_size);
+  hmsc->scsi_blk_len -= (len / hmsc->scsi_blk_size);
 
   /* case 6 : Hi = Di */
   hmsc->csw.dDataResidue -= len;
@@ -702,21 +665,21 @@ static int8_t SCSI_ProcessRead (USBD_HandleTypeDef  *pdev, uint8_t lun)
 static int8_t SCSI_ProcessWrite (USBD_HandleTypeDef  *pdev, uint8_t lun)
 {
   USBD_MSC_BOT_HandleTypeDef *hmsc = (USBD_MSC_BOT_HandleTypeDef*) pdev->pClassData;
-  uint16_t len;
+  uint32_t len = hmsc->scsi_blk_len * hmsc->scsi_blk_size;
 
-  len = (uint16_t)MIN(hmsc->scsi_blk_len, MSC_MEDIA_PACKET);
+  len = MIN(len, MSC_MEDIA_PACKET);
 
   if(((USBD_StorageTypeDef *)pdev->pUserData)->Write(lun, hmsc->bot_data,
-                             hmsc->scsi_blk_addr / hmsc->scsi_blk_size,
-                             len / hmsc->scsi_blk_size) < 0)
+                             hmsc->scsi_blk_addr,
+                             (len / hmsc->scsi_blk_size)) < 0)
   {
     SCSI_SenseCode(pdev, lun, HARDWARE_ERROR, WRITE_FAULT);
 
     return -1;
   }
 
-  hmsc->scsi_blk_addr += len;
-  hmsc->scsi_blk_len -= len;
+  hmsc->scsi_blk_addr += (len / hmsc->scsi_blk_size);
+  hmsc->scsi_blk_len -= (len / hmsc->scsi_blk_size);
 
   /* case 12 : Ho = Do */
   hmsc->csw.dDataResidue -= len;
@@ -727,7 +690,7 @@ static int8_t SCSI_ProcessWrite (USBD_HandleTypeDef  *pdev, uint8_t lun)
   }
   else
   {
-    len = (uint16_t)MIN(hmsc->scsi_blk_len , MSC_MEDIA_PACKET);
+    len = MIN((hmsc->scsi_blk_len * hmsc->scsi_blk_size), MSC_MEDIA_PACKET);
     /* Prepare EP to Receive next packet */
     USBD_LL_PrepareReceive (pdev, MSC_EPOUT_ADDR, hmsc->bot_data, len);
   }
